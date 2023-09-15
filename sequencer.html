@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Local Video Gallery</title>
+    <style>
+        body {
+            position: relative;
+        }
+
+        #video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            grid-gap: 20px;
+        }
+
+        video {
+            width: 100%;
+            height: auto;
+        }
+
+        .video-title {
+            text-align: center;
+            margin-top: 5px;
+        }
+
+        .video-checkbox {
+            display: inline-block;
+        }
+
+        .floating-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+
+        .sequence-popup {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 5px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="video-grid"></div>
+
+    <button id="sequence-button" class="floating-button">Secuencia</button>
+
+    <div id="sequence-popup" class="sequence-popup">
+        <span id="sequence-status"></span>
+        <button id="sequence-close">Cerrar</button>
+    </div>
+
+    <script>
+        const videoGrid = document.getElementById('video-grid');
+        const videoDirectory = 'http://127.0.0.1:8080/videos/';
+        let checkboxCounter = 0;
+        const sequenceOrder = [];
+
+        const sequenceButton = document.getElementById('sequence-button');
+        const sequencePopup = document.getElementById('sequence-popup');
+        const sequenceStatus = document.getElementById('sequence-status');
+        const sequenceClose = document.getElementById('sequence-close');
+        let sequenceIndex = 0; // Track the current sequence index
+
+
+        sequenceButton.addEventListener('click', () => {
+            // Create a sequence of checked videos
+            const checkedVideos = [];
+            videoGrid.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                if (checkbox.checked) {
+                    checkedVideos.push(checkbox.parentElement.querySelector('.video-title').textContent);
+                }
+            });
+
+            if (checkedVideos.length > 0) {
+                sequenceOrder.length = 0;
+                sequenceOrder.push(...checkedVideos);
+
+                // Show the sequence popup
+                sequencePopup.style.display = 'block';
+                playSequence();
+            } else {
+                alert('Por favor, seleccione al menos un video para la secuencia.');
+            }
+        });
+
+        sequenceClose.addEventListener('click', () => {
+            sequencePopup.style.display = 'none';
+            sequenceIndex = 0; // Reset the sequence index
+
+        });
+
+        function playSequence() {
+            let currentIndex = 0;
+            sequenceStatus.textContent = `Reproduciendo: ${sequenceOrder[currentIndex]}`;
+
+            const videoElement = document.createElement('video');
+            videoElement.src = videoDirectory + sequenceOrder[currentIndex];
+            videoElement.controls = true;
+            videoElement.loop = false;
+
+            videoElement.addEventListener('ended', () => {
+                currentIndex++;
+                if (currentIndex < sequenceOrder.length) {
+                    sequenceStatus.textContent = `Reproduciendo: ${sequenceOrder[currentIndex]}`;
+                    videoElement.src = videoDirectory + sequenceOrder[currentIndex];
+                    videoElement.play();
+                } else {
+                    sequencePopup.style.display = 'none';
+                    sequenceIndex = 0; // Reset the sequence index
+
+                }
+            });
+
+            sequencePopup.appendChild(videoElement);
+            videoElement.play();
+        }
+
+        async function loadVideos() {
+            try {
+                const response = await fetch(videoDirectory);
+                const htmlText = await response.text();
+
+                // Create a temporary HTML element to parse the HTML content.
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = htmlText;
+
+                // Find all anchor (link) elements within the HTML.
+                const videoLinks = tempDiv.querySelectorAll('a');
+
+                // Filter and create video elements for links ending with .mp4.
+                videoLinks.forEach(link => {
+                    const href = link.getAttribute('href');
+                    if (href.endsWith('.mp4')) {
+                        const videoContainer = document.createElement('div');
+                        const videoElement = document.createElement('video');
+                        const videoTitleContainer = document.createElement('div');
+                        const videoTitle = document.createElement('span');
+                        const videoCheckbox = document.createElement('input');
+                        const sequenceOrder = document.createElement('span');
+
+                        videoElement.src = videoDirectory + href;
+                        videoElement.controls = true;
+                        videoElement.loop = true;
+                        videoElement.autoplay = true; // Autoplay
+
+                        videoTitle.textContent = href; // Set the file name as the text content
+                        videoTitle.classList.add('video-title');
+
+                        videoCheckbox.type = 'checkbox';
+                        videoCheckbox.classList.add('video-checkbox');
+                        videoCheckbox.addEventListener('change', () => {
+                            if (videoCheckbox.checked) {
+                                checkboxCounter++;
+                                sequenceOrder.textContent = `${checkboxCounter}.`;
+                            } else {
+                                checkboxCounter--;
+                                sequenceOrder.textContent = href;
+                            }
+                        });
+                    
+                        videoTitleContainer.appendChild(videoTitle);
+                        videoTitleContainer.appendChild(videoCheckbox);
+                        videoTitleContainer.appendChild(sequenceOrder);
+
+                        videoContainer.appendChild(videoElement);
+                        videoContainer.appendChild(videoTitleContainer);
+
+                        videoGrid.appendChild(videoContainer);
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading videos:', error);
+            }
+        }
+
+        window.addEventListener('load', loadVideos);
+    </script>
+</body>
+</html>
+

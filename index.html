@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Local Video Gallery</title>
+    <style>
+        #video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            grid-gap: 20px;
+        }
+
+        video {
+            width: 100%;
+            height: auto;
+        }
+
+        .video-title {
+            text-align: center;
+            margin-top: 5px;
+        }
+
+        .video-checkbox {
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div id="video-grid"></div>
+
+    <script>
+        const videoGrid = document.getElementById('video-grid');
+        const videoDirectory = 'http://127.0.0.1:8080/videos/';
+        let checkboxCounter = 0; // Counter to display order
+
+        async function loadVideos() {
+            try {
+                const response = await fetch(videoDirectory);
+                const htmlText = await response.text();
+
+                // Create a temporary HTML element to parse the HTML content.
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = htmlText;
+
+                // Find all anchor (link) elements within the HTML.
+                const videoLinks = tempDiv.querySelectorAll('a');
+
+                // Filter and create video elements for links ending with .mp4.
+                videoLinks.forEach(link => {
+                    const href = link.getAttribute('href');
+                    if (href.endsWith('.mp4')) {
+                        const videoContainer = document.createElement('div');
+                        const videoElement = document.createElement('video');
+                        const videoTitle = document.createElement('div');
+                        const videoCheckbox = document.createElement('input');
+
+                        videoElement.src = videoDirectory + href;
+                        videoElement.controls = true;
+                        videoElement.loop = true;
+                        videoElement.autoplay = true; // Autoplay
+
+                        videoTitle.textContent = href; // Set the file name as the text content
+                        videoTitle.classList.add('video-title');
+
+                        videoCheckbox.type = 'checkbox';
+                        videoCheckbox.classList.add('video-checkbox');
+                        videoCheckbox.addEventListener('change', () => {
+                            if (videoCheckbox.checked) {
+                                checkboxCounter++;
+                                videoTitle.textContent = `${checkboxCounter}. ${href}`;
+                            } else {
+                                checkboxCounter--;
+                                videoTitle.textContent = href;
+                            }
+                        });
+
+                        videoContainer.appendChild(videoElement);
+                        videoContainer.appendChild(videoCheckbox);
+                        videoContainer.appendChild(videoTitle);
+
+                        videoGrid.appendChild(videoContainer);
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading videos:', error);
+            }
+        }
+
+        window.addEventListener('load', loadVideos);
+    </script>
+</body>
+</html>
+
